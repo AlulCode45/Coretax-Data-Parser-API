@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coretax Data Parser API - Web Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        .upload-section.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .selected-files {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .file-item {
+            background: #f5f5f5;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-file {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 5px solid #667eea;
+        }
+
+        .result-card.error {
+            border-left-color: #ff4757;
+        }
+
+        .result-card.success {
+            border-left-color: #2ed573;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-badge.success {
+            background: #2ed573;
+            color: white;
+        }
+
+        .status-badge.error {
+            background: #ff4757;
+            color: white;
+        }
+
+        .status-badge.valid {
+            background: #2ed573;
+            color: white;
+        }
+
+        .status-badge.invalid {
+            background: #ffa502;
+            color: white;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .items-table th {
+            background: #667eea;
+            color: white;
+        }
+
+        .validation-summary {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .api-status {
+            background: #f5f5f5;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .api-status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .api-status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📄 Coretax Data Parser API</h1>
+        <p class="subtitle">Upload PDF faktur pajak untuk ekstraksi dan validasi data</p>
+
+        <div class="api-status" id="apiStatus">
+            <span>⏳ Checking API connection...</span>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📤</div>
+            <h3>Pilih atau Drag & Drop File PDF</h3>
+            <p>Anda dapat memilih satu atau beberapa file sekaligus</p>
+            <input type="file" id="fileInput" class="file-input" accept=".pdf" multiple>
+            <button class="btn" onclick="document.getElementById('fileInput').click()">
+                Pilih File
+            </button>
+            <div class="selected-files" id="selectedFiles"></div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" id="uploadBtn" onclick="uploadFiles()" disabled>
+                Upload & Parse
+            </button>
+            <button class="btn" onclick="clearResults()" style="background: #95a5a6;">
+                Clear Results
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px;">Memproses PDF...</p>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let selectedFiles = [];
+
+        // Check API status
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+
+                if (data.status === 'healthy') {
+                    document.getElementById('apiStatus').className = 'api-status online';
+                    document.getElementById('apiStatus').innerHTML = '<span>✅ API Online - Ready to process files</span>';
+                } else {
+                    throw new Error('API not healthy');
+                }
+            } catch (error) {
+                document.getElementById('apiStatus').className = 'api-status offline';
+                document.getElementById('apiStatus').innerHTML = '<span>❌ API Offline - Please start the server first</span>';
+            }
+        }
+
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            displaySelectedFiles();
+        });
+
+        // Drag and drop handlers
+        const uploadSection = document.getElementById('uploadSection');
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.pdf'));
+            displaySelectedFiles();
+        });
+
+        function displaySelectedFiles() {
+            const container = document.getElementById('selectedFiles');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            if (selectedFiles.length === 0) {
+                container.innerHTML = '';
+                uploadBtn.disabled = true;
+                return;
+            }
+
+            uploadBtn.disabled = false;
+            container.innerHTML = '<h4 style="margin-bottom: 10px;">File terpilih:</h4>';
+
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>📄 ${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+                    <button class="remove-file" onclick="removeFile(${index})">Hapus</button>
+                `;
+                container.appendChild(fileItem);
+            });
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displaySelectedFiles();
+        }
+
+        async function uploadFiles() {
+            if (selectedFiles.length === 0) return;
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').innerHTML = '';
+
+            try {
+                const formData = new FormData();
+
+                if (selectedFiles.length === 1) {
+                    formData.append('file', selectedFiles[0]);
+                    const response = await fetch(`${API_URL}/parse`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    displayResults([data]);
+                } else {
+                    selectedFiles.forEach(file => {
+                        formData.append('files', file);
+                    });
+                    const response = await fetch(`${API_URL}/parse-multiple`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    displayResults(data.results);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('results');
+            container.innerHTML = '<h2>Hasil Parsing:</h2>';
+
+            results.forEach(result => {
+                const card = document.createElement('div');
+                card.className = `result-card ${result.status}`;
+
+                let html = `
+                    <div class="result-header">
+                        <h3>📄 ${result.filename}</h3>
+                        <span class="status-badge ${result.status}">${result.status.toUpperCase()}</span>
+                    </div>
+                `;
+
+                if (result.status === 'success') {
+                    html += `
+                        <p><strong>Total Items:</strong> ${result.total_items}</p>
+                    `;
+
+                    if (result.items.length > 0) {
+                        html += `
+                            <table class="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Nama Barang</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        result.items.forEach(item => {
+                            html += `
+                                <tr>
+                                    <td>${item.no}</td>
+                                    <td>${item.nama_barang}</td>
+                                    <td>${item.total_raw}</td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                </tbody>
+                            </table>
+                        `;
+                    }
+
+                    if (result.validation) {
+                        const v = result.validation;
+                        html += `
+                            <div class="validation-summary">
+                                <h4>Validasi:</h4>
+                                <p><strong>Total Kalkulasi:</strong> ${v.calculated_total_formatted}</p>
+                                <p><strong>Total PDF:</strong> ${v.pdf_total_formatted}</p>
+                                <p><strong>Selisih:</strong> ${v.difference_formatted}</p>
+                                <p><strong>Status:</strong> <span class="status-badge ${v.is_valid ? 'valid' : 'invalid'}">${v.is_valid ? '✅ VALID' : '❌ TIDAK VALID'}</span></p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    html += `<p style="color: #ff4757;"><strong>Error:</strong> ${result.error}</p>`;
+                }
+
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            selectedFiles = [];
+            displaySelectedFiles();
+            document.getElementById('fileInput').value = '';
+        }
+
+        // Check API status on load
+        checkAPIStatus();
+        setInterval(checkAPIStatus, 10000); // Check every 10 seconds
+    </script>
+</body>
+
+</html>
