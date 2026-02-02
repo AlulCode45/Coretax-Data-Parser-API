@@ -40,6 +40,57 @@ def format_idr(number: float) -> str:
     return f"{number:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
 
+def extract_invoice_metadata(full_text: str) -> Dict[str, Any]:
+    """
+    Ekstrak metadata invoice dari teks PDF
+    
+    Args:
+        full_text: Teks lengkap dari PDF
+    
+    Returns:
+        Dictionary berisi metadata invoice
+    """
+    metadata = {
+        "invoice_number": None,
+        "invoice_date": None,
+        "supplier_name": None,
+        "supplier_npwp": None,
+        "buyer_name": None,
+        "buyer_npwp": None
+    }
+    
+    # Ekstrak nomor faktur
+    invoice_match = re.search(r'Kode dan Nomor Seri Faktur Pajak:\s*(\d+)', full_text)
+    if invoice_match:
+        metadata["invoice_number"] = invoice_match.group(1)
+    
+    # Ekstrak tanggal faktur (format: DD Month YYYY atau DD-MM-YYYY)
+    date_patterns = [
+        r'(\d{1,2}\s+(?:Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+\d{4})',
+        r'(\d{1,2}-\d{1,2}-\d{4})',
+        r'(\d{1,2}/\d{1,2}/\d{4})'
+    ]
+    for pattern in date_patterns:
+        date_match = re.search(pattern, full_text)
+        if date_match:
+            metadata["invoice_date"] = date_match.group(1)
+            break
+    
+    # Ekstrak informasi supplier (Pengusaha Kena Pajak)
+    supplier_section = re.search(r'Pengusaha Kena Pajak:.*?Nama\s*:\s*([^\n]+).*?NPWP\s*:\s*(\d+)', full_text, re.DOTALL)
+    if supplier_section:
+        metadata["supplier_name"] = supplier_section.group(1).strip()
+        metadata["supplier_npwp"] = supplier_section.group(2).strip()
+    
+    # Ekstrak informasi buyer (Pembeli BKP/JKP)
+    buyer_section = re.search(r'Pembeli Barang Kena Pajak.*?Nama\s*:\s*([^\n]+).*?NPWP\s*:\s*(\d+)', full_text, re.DOTALL)
+    if buyer_section:
+        metadata["buyer_name"] = buyer_section.group(1).strip()
+        metadata["buyer_npwp"] = buyer_section.group(2).strip()
+    
+    return metadata
+
+
 def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Dict[str, Any]:
     """
     Ekstrak data invoice dari PDF dan kembalikan sebagai dictionary
@@ -53,6 +104,7 @@ def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Di
     """
     items_list = []
     pdf_summary_total = 0.0
+    metadata = {}
     
     try:
         with pdfplumber.open(pdf_file) as pdf:
@@ -63,22 +115,40 @@ def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Di
                 text = page.extract_text()
                 if text:
                     full_text += text + "\n"
-                
+            
+            # Ekstrak metadata invoice
+            metadata = extract_invoice_metadata(full_text)
+            
+            # Process tables untuk ekstrak items
+            for page in pdf.pages:
                 table = page.extract_table()
                 if not table:
                     continue
                 
                 # Proses setiap baris dalam tabel
                 for row in table:
-                    row_content = " ".join([str(c) for c in row[:-1] if c])
-                    total_col = row[-1].strip() if row[-1] else "0"
+                    if not row or len(row) < 4:
+                        continue
                     
-                    # Pattern untuk mendeteksi item barang
+                    # Skip header dan non-item rows
+                    if not row[0] or not str(row[0]).strip().isdigit():
+                        continue
+                    
+                    item_no = str(row[0]).strip()
+                    item_code = str(row[1]).strip() if row[1] else "000000"
+                    item_detail = str(row[2]).strip() if row[2] else ""
+                    total_col = str(row[3]).strip() if row[3] else "0"
+                    
+                    # Pattern untuk mendeteksi item barang dengan harga, quantity dan unit
+                    # Format: NAMA BARANG\nRp HARGA x QUANTITY UNIT
                     pattern = r"(.*?)Rp\s+([\d\.,]+)\s+[x×]\s+([\d\.,]+)\s+(\w+)"
-                    matches = re.finditer(pattern, row_content, re.DOTALL)
+                    match = re.search(pattern, item_detail, re.DOTALL)
                     
-                    for match in matches:
+                    if match:
                         raw_name = match.group(1).strip()
+                        unit_price = clean_number(match.group(2))
+                        quantity = clean_number(match.group(3))
+                        unit = match.group(4).strip()
                         
                         # Bersihkan nama item
                         clean_name = re.sub(r'\d{6}', '', raw_name)
@@ -90,13 +160,28 @@ def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Di
                         )
                         clean_name = " ".join(clean_name.split()).strip()
                         
+                        # Ekstrak discount jika ada
+                        discount = 0.0
+                        discount_match = re.search(r'Potongan Harga\s*=\s*Rp\s+([\d\.,]+)', item_detail)
+                        if discount_match:
+                            discount = clean_number(discount_match.group(1))
+                        
                         items_list.append({
                             "no": len(items_list) + 1,
+                            "item_code": item_code,
                             "nama_barang": clean_name or "Detail Item",
+                            "quantity": quantity,
+                            "unit": unit,
+                            "unit_price": unit_price,
+                            "unit_price_formatted": f"Rp {format_idr(unit_price)}",
+                            "discount": discount,
+                            "discount_formatted": f"Rp {format_idr(discount)}",
                             "total_raw": total_col,
-                            "total": clean_number(total_col)
+                            "total": clean_number(total_col),
+                            "total_formatted": f"Rp {format_idr(clean_number(total_col))}"
                         })
             
+            # Ekstrak total dari summary PDF
             # Ekstrak total dari summary PDF
             total_match = re.search(
                 r'Harga Jual / Penggantian / Uang Muka / Termin\s+([\d\.,]+)',
@@ -115,6 +200,7 @@ def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Di
         return {
             "status": "success",
             "filename": filename,
+            "metadata": metadata,
             "items": items_list,
             "total_items": len(items_list),
             "validation": {
@@ -133,6 +219,7 @@ def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Di
             "status": "error",
             "filename": filename,
             "error": str(e),
+            "metadata": {},
             "items": [],
             "total_items": 0,
             "validation": None

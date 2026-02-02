@@ -2,6 +2,56 @@
 
 REST API untuk mengekstrak dan memvalidasi data faktur pajak dari file PDF Coretax. Aplikasi ini secara otomatis membaca item-item dalam faktur, menghitung total, dan memvalidasi apakah total kalkulasi sesuai dengan total yang tertera di PDF.
 
+## 🎉 Update Terbaru (v2.0.0 - 2 Feb 2026)
+
+Parser telah diperbaiki dengan fitur lengkap untuk integrasi ASIK:
+
+✅ **Ekstraksi Quantity/Stock** - Tidak lagi default 1, ambil dari PDF  
+✅ **Unit Price** - Harga per unit untuk kalkulasi margin  
+✅ **Unit/Satuan** - PCS, KG, Lainnya, dll  
+✅ **Metadata Invoice** - Nomor, tanggal, supplier lengkap  
+✅ **Item Code** - SKU dari PDF  
+✅ **Discount** - Potongan harga tercatat
+
+### 📖 Dokumentasi Lengkap Perbaikan
+
+- **[PERBAIKAN_PARSER_UNTUK_ASIK.md](PERBAIKAN_PARSER_UNTUK_ASIK.md)** - Penjelasan lengkap semua perubahan
+- **[PANDUAN_UPDATE_ASIK.md](PANDUAN_UPDATE_ASIK.md)** - Step-by-step update ASIK integration
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Referensi cepat semua field baru
+- **[IMPROVED_SERVICE_METHOD.php](IMPROVED_SERVICE_METHOD.php)** - Kode method `processItems()` yang diperbaiki
+- **[WEB_CLIENT_GUIDE.md](WEB_CLIENT_GUIDE.md)** - 🆕 Panduan menggunakan web client
+
+## 🌐 Web Client
+
+Web client interaktif telah tersedia untuk test parser dengan mudah!
+
+**Quick Start:**
+
+```bash
+./start-web-client.sh
+```
+
+Atau manual:
+
+```bash
+# 1. Start API server
+uvicorn api:app --host 0.0.0.0 --port 9000 --reload
+
+# 2. Open web_client.html di browser
+open web_client.html
+```
+
+**Fitur Web Client:**
+
+- ✅ Upload single/multiple PDF via UI
+- ✅ Drag & drop support
+- ✅ Tampilan metadata invoice lengkap
+- ✅ Tabel items dengan semua field baru
+- ✅ Real-time API status indicator
+- ✅ Responsive design
+
+📖 [Lihat panduan lengkap](WEB_CLIENT_GUIDE.md)
+
 ## 🚀 Fitur
 
 - ✅ REST API dengan FastAPI

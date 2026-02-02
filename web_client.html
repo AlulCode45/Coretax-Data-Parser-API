@@ -173,6 +173,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
+            font-size: 14px;
         }
 
         .items-table th,
@@ -185,6 +186,105 @@
         .items-table th {
             background: #667eea;
             color: white;
+            font-size: 12px;
+        }
+
+        .items-table td {
+            font-size: 13px;
+        }
+
+        .metadata-card {
+            background: #e8f4f8;
+            border-left: 5px solid #3498db;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .metadata-card h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .metadata-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .metadata-item strong {
+            color: #555;
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .metadata-item span {
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .badge-new {
+            background: #ff6b6b;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        .highlight-new {
+            background: #fff3cd;
+            font-weight: 600;
+        }
+
+        .footer-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .footer-info h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .footer-info ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .footer-info a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer-info a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .items-table {
+                font-size: 11px;
+            }
+
+            .items-table th,
+            .items-table td {
+                padding: 5px;
+            }
+
+            .metadata-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .validation-summary {
@@ -249,7 +349,8 @@
 <body>
     <div class="container">
         <h1>📄 Coretax Data Parser API</h1>
-        <p class="subtitle">Upload PDF faktur pajak untuk ekstraksi dan validasi data</p>
+        <p class="subtitle">Upload PDF faktur pajak untuk ekstraksi dan validasi data lengkap <span
+                class="badge-new">v2.0</span></p>
 
         <div class="api-status" id="apiStatus">
             <span>⏳ Checking API connection...</span>
@@ -281,11 +382,63 @@
         </div>
 
         <div class="results" id="results"></div>
+
+        <div class="footer-info">
+            <h4>✨ New Features (v2.0):</h4>
+            <ul>
+                <li>✅ <strong>Quantity/Stock extraction</strong> - Accurate stock from PDF</li>
+                <li>✅ <strong>Unit Price</strong> - Price per unit for margin calculation</li>
+                <li>✅ <strong>Unit/Satuan</strong> - PCS, KG, etc.</li>
+                <li>✅ <strong>Invoice Metadata</strong> - Number, date, supplier info</li>
+                <li>✅ <strong>Item Code</strong> - SKU from PDF</li>
+                <li>✅ <strong>Discount</strong> - Discount amount tracked</li>
+            </ul>
+            <p style="margin-top: 10px; font-size: 12px;">
+                📖 Documentation: <a href="PERBAIKAN_PARSER_UNTUK_ASIK.md"
+                    target="_blank">PERBAIKAN_PARSER_UNTUK_ASIK.md</a> |
+                <a href="QUICK_REFERENCE.md" target="_blank">Quick Reference</a> |
+                <a href="CONTOH_RESPONSE.md" target="_blank">Response Examples</a>
+            </p>
+        </div>
     </div>
 
     <script>
-        const API_URL = 'http://localhost:8000';
+        // You can change this to match your API server port
+        // Default: 8000, ASIK uses: 9000
+        const API_URL = 'http://localhost:9000';
         let selectedFiles = [];
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // File input handler
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                selectedFiles = Array.from(e.target.files);
+                displaySelectedFiles();
+            });
+
+            // Drag and drop handlers
+            const uploadSection = document.getElementById('uploadSection');
+
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+
+            uploadSection.addEventListener('dragleave', () => {
+                uploadSection.classList.remove('dragover');
+            });
+
+            uploadSection.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.pdf'));
+                displaySelectedFiles();
+            });
+
+            // Check API status on load
+            checkAPIStatus();
+            setInterval(checkAPIStatus, 10000); // Check every 10 seconds
+        });
 
         // Check API status
         async function checkAPIStatus() {
@@ -304,31 +457,6 @@
                 document.getElementById('apiStatus').innerHTML = '<span>❌ API Offline - Please start the server first</span>';
             }
         }
-
-        // File input handler
-        document.getElementById('fileInput').addEventListener('change', (e) => {
-            selectedFiles = Array.from(e.target.files);
-            displaySelectedFiles();
-        });
-
-        // Drag and drop handlers
-        const uploadSection = document.getElementById('uploadSection');
-
-        uploadSection.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadSection.classList.add('dragover');
-        });
-
-        uploadSection.addEventListener('dragleave', () => {
-            uploadSection.classList.remove('dragover');
-        });
-
-        uploadSection.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadSection.classList.remove('dragover');
-            selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.pdf'));
-            displaySelectedFiles();
-        });
 
         function displaySelectedFiles() {
             const container = document.getElementById('selectedFiles');
@@ -414,13 +542,87 @@
                         <p><strong>Total Items:</strong> ${result.total_items}</p>
                     `;
 
+                    // Display metadata if available
+                    if (result.metadata && Object.keys(result.metadata).some(key => result.metadata[key])) {
+                        html += `
+                            <div class="metadata-card">
+                                <h4>📋 Invoice Metadata <span class="badge-new">NEW</span></h4>
+                                <div class="metadata-grid">
+                        `;
+
+                        if (result.metadata.invoice_number) {
+                            html += `
+                                <div class="metadata-item">
+                                    <strong>Invoice Number:</strong>
+                                    <span>${result.metadata.invoice_number}</span>
+                                </div>
+                            `;
+                        }
+
+                        if (result.metadata.invoice_date) {
+                            html += `
+                                <div class="metadata-item">
+                                    <strong>Invoice Date:</strong>
+                                    <span>${result.metadata.invoice_date}</span>
+                                </div>
+                            `;
+                        }
+
+                        if (result.metadata.supplier_name) {
+                            html += `
+                                <div class="metadata-item">
+                                    <strong>Supplier:</strong>
+                                    <span>${result.metadata.supplier_name}</span>
+                                </div>
+                            `;
+                        }
+
+                        if (result.metadata.supplier_npwp) {
+                            html += `
+                                <div class="metadata-item">
+                                    <strong>Supplier NPWP:</strong>
+                                    <span>${result.metadata.supplier_npwp}</span>
+                                </div>
+                            `;
+                        }
+
+                        if (result.metadata.buyer_name) {
+                            html += `
+                                <div class="metadata-item">
+                                    <strong>Buyer:</strong>
+                                    <span>${result.metadata.buyer_name}</span>
+                                </div>
+                            `;
+                        }
+
+                        if (result.metadata.buyer_npwp) {
+                            html += `
+                                <div class="metadata-item">
+                                    <strong>Buyer NPWP:</strong>
+                                    <span>${result.metadata.buyer_npwp}</span>
+                                </div>
+                            `;
+                        }
+
+                        html += `
+                                </div>
+                            </div>
+                        `;
+                    }
+
                     if (result.items.length > 0) {
                         html += `
+                            <h4 style="margin-top: 20px;">📦 Items Detail</h4>
                             <table class="items-table">
                                 <thead>
                                     <tr>
                                         <th>No</th>
+                                        <th>Item Code</th>
                                         <th>Nama Barang</th>
+                                        <th>Qty <span class="badge-new">NEW</span></th>
+                                        <th>Unit</th>
+                                        <th>Unit Price <span class="badge-new">NEW</span></th>
+                                        <th>Discount</th>
                                         <th>Total</th>
                                     </tr>
                                 </thead>
@@ -431,8 +633,13 @@
                             html += `
                                 <tr>
                                     <td>${item.no}</td>
-                                    <td>${item.nama_barang}</td>
-                                    <td>${item.total_raw}</td>
+                                    <td>${item.item_code || '-'}</td>
+                                    <td><strong>${item.nama_barang}</strong></td>
+                                    <td>${item.quantity ? item.quantity.toLocaleString('id-ID') : '-'}</td>
+                                    <td>${item.unit || '-'}</td>
+                                    <td>${item.unit_price_formatted || '-'}</td>
+                                    <td>${item.discount_formatted || 'Rp 0,00'}</td>
+                                    <td><strong>${item.total_formatted || item.total_raw}</strong></td>
                                 </tr>
                             `;
                         });
@@ -470,10 +677,6 @@
             displaySelectedFiles();
             document.getElementById('fileInput').value = '';
         }
-
-        // Check API status on load
-        checkAPIStatus();
-        setInterval(checkAPIStatus, 10000); // Check every 10 seconds
     </script>
 </body>
 
