@@ -356,6 +356,20 @@
             <span>⏳ Checking API connection...</span>
         </div>
 
+        <!-- Troubleshooting hint -->
+        <div id="troubleshootHint"
+            style="display: none; background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+            <strong>⚠️ Connection Issues?</strong>
+            <ul style="margin: 10px 0 0 20px;">
+                <li>Disable ad blocker or browser extensions (uBlock, AdBlock, etc.)</li>
+                <li>Try opening in Incognito/Private mode</li>
+                <li>Make sure API server is running: <code
+                        style="background: #f5f5f5; padding: 2px 6px;">uvicorn api:app --host 0.0.0.0 --port 9000</code>
+                </li>
+                <li>Check if port 9000 is not blocked by firewall</li>
+            </ul>
+        </div>
+
         <div class="upload-section" id="uploadSection">
             <div class="upload-icon">📤</div>
             <h3>Pilih atau Drag & Drop File PDF</h3>
@@ -405,7 +419,7 @@
     <script>
         // You can change this to match your API server port
         // Default: 8000, ASIK uses: 9000
-        const API_URL = 'http://localhost:9000';
+        const API_URL = 'http://127.0.0.1:9000';
         let selectedFiles = [];
 
         // Initialize when DOM is ready
@@ -443,18 +457,38 @@
         // Check API status
         async function checkAPIStatus() {
             try {
-                const response = await fetch(`${API_URL}/health`);
+                const response = await fetch(`${API_URL}/health`, {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'healthy') {
                     document.getElementById('apiStatus').className = 'api-status online';
                     document.getElementById('apiStatus').innerHTML = '<span>✅ API Online - Ready to process files</span>';
+                    document.getElementById('troubleshootHint').style.display = 'none';
                 } else {
                     throw new Error('API not healthy');
                 }
             } catch (error) {
                 document.getElementById('apiStatus').className = 'api-status offline';
-                document.getElementById('apiStatus').innerHTML = '<span>❌ API Offline - Please start the server first</span>';
+                document.getElementById('troubleshootHint').style.display = 'block';
+
+                // Detect specific error types
+                let message = '❌ API Offline';
+                if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+                    message = '❌ Cannot connect to API - Server not running on port 9000';
+                } else if (error.message.includes('blocked')) {
+                    message = '❌ Request blocked - Disable ad blocker or try Incognito mode';
+                }
+
+                document.getElementById('apiStatus').innerHTML = `<span>${message}</span>`;
+                console.log('API connection error:', error.message);
             }
         }
 
