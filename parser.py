@@ -142,7 +142,7 @@ def extract_invoice_data(pdf_file: BytesIO, filename: str = "invoice.pdf") -> Di
                 table = page.extract_table({
                     "vertical_strategy": "lines",
                     "horizontal_strategy": "lines",
-                    "snap_tolerance": 35, # Toleransi ditingkatkan untuk mengatasi space lebar/garis tebal
+                    "snap_tolerance": 5, # Toleransi ditingkatkan untuk mengatasi space lebar/garis tebal
                 })
                 
                 if not table: continue
